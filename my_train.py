@@ -1,3 +1,5 @@
+## This is the only py I use. Another .py I revise is dataset.py; Also utils.py, plot.py
+
 import torch
 import csv
 from torch.utils.data import DataLoader
@@ -23,13 +25,13 @@ def make_args():
                       'sgd2', 'sgd3',
                       'drsom',
                     ])
-    parser.add_argument('--epoch',default=15,type=int)
+    parser.add_argument('--epoch',default=20,type=int)
     parser.add_argument('--batch_size',default=32,type=int)
-    parser.add_argument('--train_path',default=r'D:\xch2023\Optimization for RL\code\Ordinal-Regression-for-Age-Estimation\tarball\AFAD-Full')
-    parser.add_argument('--val_path',default=r'D:\xch2023\Optimization for RL\code\Ordinal-Regression-for-Age-Estimation\tarball\AFAD-Full')
+    parser.add_argument('--train_path',default=r'/nfsshare/home/xiechenghan/DRO_trustregion/tarball/AFAD-Full')
+    parser.add_argument('--val_path',default=r'/nfsshare/home/xiechenghan/DRO_trustregion/tarball/AFAD-Full')
     parser.add_argument('--trained_model',default=None,help='the path to the saved trained model')
     parser.add_argument('--lr',default=1e-3,type=float)
-    parser.add_argument('--save_path',default=r'D:\xch2023\Optimization for RL\code\Ordinal-Regression-for-Age-Estimation\results')
+    parser.add_argument('--save_path',default=r'/nfsshare/home/xiechenghan/DRO_trustregion/results/')
     parser.add_argument('--out_dim',default=1)
     add_parser_options(parser)
     args = parser.parse_args()
@@ -47,7 +49,7 @@ def train_loop(model,loader,optimizer,loss_func,device,importance):
         def closure(backward=True):
             optimizer.zero_grad()
             predict = model(x)
-            loss = loss_func(predict, label,importance,0.1)
+            loss = loss_func(predict, label,importance,lbda=0.1)
             loss.float()
             if not backward:
                 return loss
@@ -61,8 +63,7 @@ def train_loop(model,loader,optimizer,loss_func,device,importance):
             loss,predict= optimizer.step(closure=closure)
         else:
             predict = model(x)
-            predict_real=predict*75
-            loss = loss_func(predict,label,importance,0.1).to(device)
+            loss = loss_func(predict,label,importance,lbda=0.1).to(device)
             loss.float()
             optimizer.zero_grad()
             loss.backward()
@@ -75,10 +76,13 @@ def train_loop(model,loader,optimizer,loss_func,device,importance):
         avg_mae+=mae
         if step % 100 == 0:
             print('training || loss:{:.7f} MAE:{:.5f} [{}/{}]'.format(loss.item(),mae,len(x)*(step+1),total))
-        if step>amount:
-            avg_loss=avg_loss/amount
-            avg_mae=avg_mae/amount
-            break
+        ## 如果算力不够
+        # if step>amount:
+        #     avg_loss=avg_loss/amount
+        #     avg_mae=avg_mae/amount
+        #     break
+    avg_loss=avg_loss/total
+    avg_mae=avg_mae/amount
     return avg_loss,avg_mae
 
 def val_loop(model,loader,device):
@@ -86,16 +90,16 @@ def val_loop(model,loader,device):
     amount=20
     mae = 0
     for step,batch in enumerate(loader):
-        if step < amount:
-            x,label,age = batch
-            x = x.to(device)
-            label = label.to(device)
-            age = age.to(device)
-            predict = model(x)
-            mae += MAE(predict,age)*len(age)
-        else:
-            break
-    mae = mae/(amount*len(age))
+        # if step < amount:
+        x,label,age = batch
+        x = x.to(device)
+        label = label.to(device)
+        age = age.to(device)
+        predict = model(x)
+        mae += MAE(predict,age)*len(age)
+        # else:
+        #     break
+    mae = mae/(total*len(age))
     print('validate|| MAE:{:.5f}'.format(mae))
     return mae
 # resnet model
@@ -151,17 +155,18 @@ def main(args):
     all_avg_loss=[];all_avg_mae=[];all_val_mae=[]
     for i in range(args.epoch):
         print('-----------------------epoch {}-----------------------'.format(i+1))
+        if args.optim=='drsom':
+            print('-----------current methods: drsom-----------')
         if args.optim=='sgd':
             print('-----------current learning rate: {:.6f}-----------'.format(optimizer.state_dict()['param_groups'][0]['lr']))
         model.train()
-        # train_loop(model,train_loader,optimizer,importance_cross_entropy,device,importance)
         avg_loss,avg_mae=train_loop(model,train_loader,optimizer,DRO_MSE,device,importance)
-        # with torch.no_grad():
-        #     model.eval()
-        #     mae_val = val_loop(model,val_loader,device)
-        # if mae_val < best_MAE:
-        #     best_MAE = mae_val
-        #     is_best = 1
+        with torch.no_grad():
+            model.eval()
+            mae_val = val_loop(model,val_loader,device)
+        if mae_val < best_MAE:
+            best_MAE = mae_val
+            is_best = 1
         save_model(model,args,'epoch_{}.pth'.format(i+1),is_best)
         # if (i+1) % 5 == 0 and not is_best:
         #     dict = torch.load('E:\PKU\cv_learning\ordinal-regression\model\\best.pth')
@@ -175,7 +180,7 @@ def main(args):
         # all_val_mae.append(mae_val.item())
     header = ['all_avg_loss', 'all_avg_mae', 'all_val_mae']
     # data=[all_avg_loss,all_avg_mae,all_val_mae]
-    with open('drsom.csv', 'w', encoding='utf-8', newline='') as file_obj:
+    with open(f'./results/6/19{args.optim}.csv', 'w', encoding='utf-8', newline='') as file_obj:
     # 创建writer对象
         writer = csv.writer(file_obj)
         # 写表头

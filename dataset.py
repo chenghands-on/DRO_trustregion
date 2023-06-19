@@ -12,9 +12,9 @@ from torchvision.transforms.transforms import RandomRotation, ToTensor
 class AgeDataset(Dataset):
     def __init__(self,path,train=False):
         self.path = path
-        self.num_imgs = len(glob.glob(path+'\*\*\*'))
+        self.num_imgs = len(glob.glob(path+'/*/*/*'))
         # print(self.num_imgs)
-        self.img_list = glob.glob(path+'\*\*\*')
+        self.img_list = glob.glob(path+'/*/*/*')
         # print(self.img_list)
         if train:
             self.transform = transforms.Compose([
@@ -41,7 +41,8 @@ class AgeDataset(Dataset):
         else:
             idx=idx+1
         img = Image.open(self.img_list[idx])
-        temp_list = self.img_list[idx].split('\\')
+        temp_list = self.img_list[idx].split('/')
+        # print(temp_list)
         # age = int(temp_list[-2])
         age = int(temp_list[-3])
         # label = torch.zeros(75-15+1,2)

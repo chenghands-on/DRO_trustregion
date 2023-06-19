@@ -5,11 +5,14 @@ import numpy as np
 import torch.nn.functional as F
 
 def save_model(model,args,path,is_best):
-    torch.save(model.state_dict(),args.save_path+path)
+    # torch.save(model.state_dict(),args.save_path+path)
     if is_best:
         torch.save(model.state_dict(),args.save_path+'best.pth')
 
 def MAE(predict,age):
+    '''
+    Calculate mean_abs_error
+    '''
     # predict[predict>=0.5] = 1
     # predict[predict<0.5] = 0
     # predict_age = torch.sum(predict,dim=1)[:,0] + 15
@@ -21,10 +24,10 @@ def MAE(predict,age):
 
 def make_task_importance(data_path):
     lambda_t = []
-    age_list = glob.glob(data_path+'\*\*')
+    age_list = glob.glob(data_path+'/*/*')
     for age in age_list:
         # print(age)
-        temp_list = glob.glob(age+'\*')
+        temp_list = glob.glob(age+'/*')
         lambda_t.append(len(temp_list))
     lambda_t = np.sqrt(lambda_t)
     summary = np.sum(lambda_t)
@@ -63,6 +66,9 @@ def DRO_cross_entropy(predict,label,importance,lbda):
     return loss
 
 def DRO_MSE(predict,label,importance,lbda):
+    '''
+    The obejctive function used in DRO-regressive
+    '''
     # predict = torch.log(predict)
     # entropy = torch.sum(-1*predict*label,dim=2)
     # entropy = entropy * importance

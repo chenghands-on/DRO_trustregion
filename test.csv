@@ -1,4 +1,0 @@
-all_avg_loss,all_avg_mae,all_val_mae
-0.020515152905136346,0.0047516691032797095,0.003858053218573332,0.0027437990298494696,0.0022436113096773623
-"tensor(57.6473, grad_fn=<DivBackward0>)","tensor(24.8128, grad_fn=<DivBackward0>)","tensor(22.1493, grad_fn=<DivBackward0>)","tensor(19.6832, grad_fn=<DivBackward0>)","tensor(17.2630, grad_fn=<DivBackward0>)"
-tensor(15.2156),tensor(15.0225),tensor(15.2737),tensor(15.1542),tensor(14.9423)

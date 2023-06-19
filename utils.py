@@ -68,6 +68,7 @@ def DRO_cross_entropy(predict,label,importance,lbda):
 def DRO_MSE(predict,label,importance,lbda):
     '''
     The obejctive function used in DRO-regressive
+    loss很小的原因是没有乘以75；而且又是均方差误差
     '''
     # predict = torch.log(predict)
     # entropy = torch.sum(-1*predict*label,dim=2)

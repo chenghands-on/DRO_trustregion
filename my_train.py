@@ -18,21 +18,27 @@ def make_args():
     parser.add_argument("--optim",
                     required=False,
                     type=str,
-                    default='drsom',
+                    default='nsgd',
                     choices=[
                       'adam',
-                      'sgd', 'sgd4',
-                      'sgd2', 'sgd3',
+                      'sgd',
                       'drsom',
+                      'nsgd'
                     ])
-    parser.add_argument('--epoch',default=20,type=int)
+    parser.add_argument('--epoch',default=100,type=int)
     parser.add_argument('--batch_size',default=32,type=int)
     parser.add_argument('--train_path',default=r'/nfsshare/home/xiechenghan/DRO_trustregion/tarball/AFAD-Full')
     parser.add_argument('--val_path',default=r'/nfsshare/home/xiechenghan/DRO_trustregion/tarball/AFAD-Full')
     parser.add_argument('--trained_model',default=None,help='the path to the saved trained model')
-    parser.add_argument('--lr',default=1e-3,type=float)
-    parser.add_argument('--save_path',default=r'/nfsshare/home/xiechenghan/DRO_trustregion/results/')
+    parser.add_argument('--lr',default=1e-1,type=float)
+    parser.add_argument('--save_path',default=r'/nfsshare/home/xiechenghan/DRO_trustregion/results/619')
     parser.add_argument('--out_dim',default=1)
+    ## penalty size
+    parser.add_argument('--gamma',default=1e-3)
+    parser.add_argument('--momentum', default=0.9, type=float)
+    # parser.add_argument('--gamma', default=1e-5, type=float)
+    parser.add_argument('--wd', default=1e-4, type=float)  # WEIGHT DECAY  
+    parser.add_argument('--epoch_list', default='50,80,100', type=str) 
     add_parser_options(parser)
     args = parser.parse_args()
     return args
@@ -68,9 +74,8 @@ def train_loop(model,loader,optimizer,loss_func,device,importance):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+        ## 计算均方差的时候用真是年龄而不是以前的年龄。
         predict_real=predict*75
-        # print(predict_real[0:10])
-        # print(age[0:10])
         mae = MAE(predict_real,age)
         avg_loss+=loss.item()
         avg_mae+=mae
@@ -96,10 +101,12 @@ def val_loop(model,loader,device):
         label = label.to(device)
         age = age.to(device)
         predict = model(x)
-        mae += MAE(predict,age)*len(age)
+        # mae += MAE(predict,age)*len(age)
+        mae+=MAE(predict,age)
         # else:
         #     break
-    mae = mae/(total*len(age))
+    # mae = mae/(total*len(age))
+    mae=mae/total
     print('validate|| MAE:{:.5f}'.format(mae))
     return mae
 # resnet model
@@ -109,17 +116,39 @@ def get_model(out_dim):
     model.fc=nn.Linear(fc_features,out_dim)
     return model
 
-# def get_eta(inner_loss,lbda,init_eta=0,lr=0.01):
-#     eta=init_eta
-#     iter=0
-#     # objective=lbda*(-1+1/4*(max(0,inner_loss/lbda-eta+2))^2)+eta
-#     gradient=1-lbda*(max(0,inner_loss/lbda-eta+2))/2
-#     if gradient>1e-6:
-#         eta=eta-lr*gradient
-#         print(iter)
-#         iter+=1
-#     else:
-#         return eta
+
+## SGD and NSGD
+def parse_algo(args, model, **kwargs):
+    """
+        args: a string containing algorithm type and paras
+            sgd
+            sgd_clip([layer])
+            normalized_sgd([layer])
+            adagrad([element], [layer])
+            qhm_clip([layer])
+        Note: if [layer], grad normalization is applied layerwise.
+            Here every submodel with direct parameters is considered a layer.
+    """
+    from algorithm import Algorithm, SGD, NormalizedSGD
+    net_paras = model.parameters()
+    
+    if 'normalized_sgd' in args.lower():
+        algo = NormalizedSGD
+        para = ('wd', 'lr', 'momentum')
+    elif 'sgd' in args.lower():
+        algo = SGD
+        para = ('wd', 'lr', 'momentum')
+    else:
+        raise NotImplementedError
+    return Algorithm(net_paras, algo, **{key: kwargs[key] for key in para})
+
+
+def adjust_lr(lr, epochs, epoch, optimizer):
+    import bisect
+    index = bisect.bisect_right(epochs, epoch)
+    lr_now = lr / (10 ** index)
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr_now
 
 def main(args):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -143,11 +172,14 @@ def main(args):
 
     if args.optim=='drsom':
         func_kwargs=render_args(args)
-        optimizer = DRSOM(model.parameters(),**func_kwargs)
+        optimizer = DRSOM(model.parameters(),gamma=args.gamma,**func_kwargs)
     else:
-        optimizer = torch.optim.SGD(model.parameters(),lr=args.lr,weight_decay=0.0001,momentum=0.9)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer,30,gamma=0.5,last_epoch=-1,verbose=False)
-
+        # optimizer = torch.optim.SGD(model.parameters(),lr=args.lr,weight_decay=0.0001,momentum=0.9)
+        # scheduler = torch.optim.lr_scheduler.StepLR(optimizer,30,gamma=0.5,last_epoch=-1,verbose=False)
+        optimizer = parse_algo(args.optim, model, wd=args.wd,
+                           lr=args.lr, momentum=args.momentum)
+        
+    epoch_list = [int(epoch) for epoch in args.epoch_list.split(',')]
     importance = make_task_importance(args.train_path)
 
     best_MAE = 72. - 15. 
@@ -156,31 +188,35 @@ def main(args):
     for i in range(args.epoch):
         print('-----------------------epoch {}-----------------------'.format(i+1))
         if args.optim=='drsom':
-            print('-----------current methods: drsom-----------')
+            print('-----------current methods: drsom, initial region:{:.6f}-----------.'.format(args.gamma))
         if args.optim=='sgd':
-            print('-----------current learning rate: {:.6f}-----------'.format(optimizer.state_dict()['param_groups'][0]['lr']))
+            adjust_lr(args.lr, epoch_list, i, optimizer)
+            print('-----------current methods: sgd, learning rate: {:.6f}-----------'.format(args.lr))
+        if args.optim=='nsgd':
+            adjust_lr(args.lr, epoch_list, i, optimizer)
+            print('-----------current methods: nsgd, learning rate: {:.6f}-----------'.format(args.lr))
         model.train()
-        avg_loss,avg_mae=train_loop(model,train_loader,optimizer,DRO_MSE,device,importance)
+        train_loss,train_mae=train_loop(model,train_loader,optimizer,DRO_MSE,device,importance)
         with torch.no_grad():
             model.eval()
-            mae_val = val_loop(model,val_loader,device)
-        if mae_val < best_MAE:
-            best_MAE = mae_val
+            val_mae = val_loop(model,val_loader,device)
+        if val_mae < best_MAE:
+            best_MAE = val_mae
             is_best = 1
         save_model(model,args,'epoch_{}.pth'.format(i+1),is_best)
         # if (i+1) % 5 == 0 and not is_best:
         #     dict = torch.load('E:\PKU\cv_learning\ordinal-regression\model\\best.pth')
         #     model.load_state_dict(dict)
         #     print('early stop and go back')
-        if args.optim=='sgd':
-            scheduler.step()
+        # if args.optim=='sgd':
+        #     scheduler.step()
         is_best = 0
-        all_avg_loss.append(avg_loss)
-        all_avg_mae.append(avg_mae.item())
+        all_avg_loss.append(train_loss)
+        all_avg_mae.append(val_mae.item())
         # all_val_mae.append(mae_val.item())
-    header = ['all_avg_loss', 'all_avg_mae', 'all_val_mae']
+    header = ['all_train_loss', 'all_val_mae']
     # data=[all_avg_loss,all_avg_mae,all_val_mae]
-    with open(f'./results/6/19{args.optim}.csv', 'w', encoding='utf-8', newline='') as file_obj:
+    with open(args.save_path+f'/{args.optim}.csv', 'w', encoding='utf-8', newline='') as file_obj:
     # 创建writer对象
         writer = csv.writer(file_obj)
         # 写表头

@@ -1,0 +1,43 @@
+/nfsshare/home/xiechenghan/anaconda3/envs/rlxch/lib/python3.8/site-packages/torchvision/io/image.py:13: UserWarning: Failed to load image Python extension: libtorch_cuda_cu.so: cannot open shared object file: No such file or directory
+  warn(f"Failed to load image Python extension: {e}")
+/nfsshare/home/xiechenghan/anaconda3/envs/rlxch/lib/python3.8/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/nfsshare/home/xiechenghan/anaconda3/envs/rlxch/lib/python3.8/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=None`.
+  warnings.warn(msg)
+/nfsshare/home/xiechenghan/DRO_trustregion/utils.py:76: UserWarning: Using a target size (torch.Size([32])) that is different to the input size (torch.Size([32, 1])). This will likely lead to incorrect results due to broadcasting. Please ensure they have the same size.
+  inner_loss = F.mse_loss(predict,label)/len(label)
+/nfsshare/home/xiechenghan/DRO_trustregion/utils.py:79: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  loss=torch.tensor(lbda)*(-1+1/4*torch.pow((inner_loss-torch.tensor(eta))/torch.tensor(lbda)+2,2))+torch.tensor(eta)
+/nfsshare/home/xiechenghan/DRO_trustregion/algorithm.py:41: UserWarning: This overload of add_ is deprecated:
+	add_(Number alpha, Tensor other)
+Consider using one of the following signatures instead:
+	add_(Tensor other, *, Number alpha) (Triggered internally at  ../torch/csrc/utils/python_arg_parser.cpp:1174.)
+  buf.mul_(momentum).add_(1 - momentum, grad)
+Traceback (most recent call last):
+  File "my_train.py", line 242, in <module>
+    main(args)
+  File "my_train.py", line 199, in main
+    train_loss,train_mae=train_loop(model,train_loader,optimizer,DRO_MSE,device,importance)
+  File "my_train.py", line 50, in train_loop
+    for step,batch in enumerate(loader):
+  File "/nfsshare/home/xiechenghan/anaconda3/envs/rlxch/lib/python3.8/site-packages/torch/utils/data/dataloader.py", line 681, in __next__
+    data = self._next_data()
+  File "/nfsshare/home/xiechenghan/anaconda3/envs/rlxch/lib/python3.8/site-packages/torch/utils/data/dataloader.py", line 721, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+  File "/nfsshare/home/xiechenghan/anaconda3/envs/rlxch/lib/python3.8/site-packages/torch/utils/data/_utils/fetch.py", line 49, in fetch
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/nfsshare/home/xiechenghan/anaconda3/envs/rlxch/lib/python3.8/site-packages/torch/utils/data/_utils/fetch.py", line 49, in <listcomp>
+    data = [self.dataset[idx] for idx in possibly_batched_index]
+  File "/nfsshare/home/xiechenghan/DRO_trustregion/dataset.py", line 55, in __getitem__
+    img = self.transform(img)
+  File "/nfsshare/home/xiechenghan/anaconda3/envs/rlxch/lib/python3.8/site-packages/torchvision/transforms/transforms.py", line 95, in __call__
+    img = t(img)
+  File "/nfsshare/home/xiechenghan/anaconda3/envs/rlxch/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1130, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/nfsshare/home/xiechenghan/anaconda3/envs/rlxch/lib/python3.8/site-packages/torchvision/transforms/transforms.py", line 270, in forward
+    return F.normalize(tensor, self.mean, self.std, self.inplace)
+  File "/nfsshare/home/xiechenghan/anaconda3/envs/rlxch/lib/python3.8/site-packages/torchvision/transforms/functional.py", line 360, in normalize
+    return F_t.normalize(tensor, mean=mean, std=std, inplace=inplace)
+  File "/nfsshare/home/xiechenghan/anaconda3/envs/rlxch/lib/python3.8/site-packages/torchvision/transforms/functional_tensor.py", line 929, in normalize
+    tensor = tensor.clone()
+KeyboardInterrupt

@@ -3,6 +3,7 @@
 import torch
 import csv
 from torch.utils.data import DataLoader
+from sklearn.model_selection import train_test_split
 import torch.nn as nn
 import argparse
 from dataset import AgeDataset
@@ -12,6 +13,7 @@ from torchvision.models import resnet18
 from pydrsom.pydrsom.drsom import DRSOMB as DRSOM
 from pydrsom.pydrsom.drsom_utils import *
 import matplotlib.pyplot as plt
+import glob
 
 def make_args():
     parser = argparse.ArgumentParser(description='argument parser')
@@ -31,7 +33,7 @@ def make_args():
     parser.add_argument('--val_path',default=r'/nfsshare/home/xiechenghan/DRO_trustregion/tarball/AFAD-Full')
     parser.add_argument('--trained_model',default=None,help='the path to the saved trained model')
     parser.add_argument('--lr',default=1e-1,type=float)
-    parser.add_argument('--save_path',default=r'/nfsshare/home/xiechenghan/DRO_trustregion/results/619')
+    parser.add_argument('--save_path',default=r'/nfsshare/home/xiechenghan/DRO_trustregion/results/620')
     parser.add_argument('--out_dim',default=1)
     ## penalty size
     parser.add_argument('--gamma',default=1e-3)
@@ -164,8 +166,22 @@ def main(args):
         print('train from scratch!')
     model.to(device)
 
-    train_dataset = AgeDataset(args.train_path,train=True)
-    val_dataset = AgeDataset(args.val_path)
+    
+
+# 该字符串应匹配你的数据目录结构，'*'代表任意字符或目录
+    img_paths = glob.glob('/nfsshare/home/xiechenghan/DRO_trustregion/tarball/AFAD-Full/*/*/*.jpg')
+
+    # 然后，你可以根据每个路径生成对应的年龄标签
+    ages = [int(path.split('/')[-3]) for path in img_paths]
+
+    # 这里，img_paths, ages 是所有图像的路径和对应的年龄
+    train_img_paths, val_img_paths, train_ages, val_ages = train_test_split(img_paths, ages, test_size=0.2, stratify=ages)
+
+    train_dataset = AgeDataset(train_img_paths, train_ages, train=True)
+    val_dataset = AgeDataset(val_img_paths, val_ages, train=False)
+
+    # train_dataset = AgeDataset(args.train_path,train=True)
+    # val_dataset = AgeDataset(args.val_path)
 
     train_loader = DataLoader(train_dataset,batch_size=args.batch_size,shuffle=True)
     val_loader = DataLoader(val_dataset,batch_size=args.batch_size)

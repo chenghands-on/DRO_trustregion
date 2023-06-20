@@ -5,5 +5,7 @@
 #BSUB -n 1
 #BSUB -q gauss
 #BSUB -gpu "num=1:mode=exclusive_process"
+cd /nfsshare/home/xiechenghan/DRO_trustregion
 python my_train.py
-# python my_train.py --optim drsom
+python my_train.py --optim sgd
+python my_train.py --optim drsom --gamma 0.001

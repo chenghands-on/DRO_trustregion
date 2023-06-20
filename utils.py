@@ -6,8 +6,8 @@ import torch.nn.functional as F
 
 def save_model(model,args,path,is_best):
     # torch.save(model.state_dict(),args.save_path+path)
-    if is_best:
-        torch.save(model.state_dict(),args.save_path+'best.pth')
+    # if is_best:
+    torch.save(model.state_dict(),args.save_path+path)
 
 def MAE(predict,age):
     '''
